@@ -57,5 +57,87 @@ $CUDA_VISIBLE_DEVICES=0 jupyter notebook --no-browser --port=8888
 ```sh
 $ssh -N -f -L localhost:8881:localhost:8888 s161362@mnemosyne.compute.dtu.dk
 ```
+## AWS to download Spacenet Dataset
 
+AWS create account
+Get the credentials keys on the desktop of AWS online
+create a bucket and make it "requester payer" (see: https://docs.aws.amazon.com/fr_fr/AmazonS3/latest/dev/configure-requester-pays-console.html )
+install aws console:
+```sh
+$ pip install awscli
+```
+put credentials connection info  (only put key and secret key, the rest do enter) 
+```sh
+$ aws configure
+```
+check what is in the bucket spaceNet
+```sh
+$ aws s3 ls spacenet-dataset --request-payer requester
+```
+get the list of what is in the bucket 
+```sh
+$ aws s3api list-objects --bucket spacenet-dataset --request-payer requester
+```
+
+Download Building Dataset Spacenet
+### Rio
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_1_Rio/processedData/processedBuildingLabels.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_1_RIO/processedBuildingLabels.tar.gz
+```
+### Vegas
+#### Train
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_2_Vegas/AOI_2_Vegas_Train.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_2_Vegas/AOI_2_Vegas_Train.tar.gz
+```
+#### Test
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_2_Vegas/AOI_2_Vegas_Test_public.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_2_Vegas/AOI_2_Vegas_Test_public.tar.gz
+```
+### Paris
+#### Train
+```sj
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_3_Paris/AOI_3_Paris_Train.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_3_Paris/AOI_3_Paris_Train.tar.gz
+
+```
+#### Test
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_3_Paris/AOI_3_Paris_Test_public.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_3_Paris/AOI_3_Paris_Test_public.tar.gz
+```
+### Shanghai
+#### Train
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_4_Shanghai/AOI_4_Shanghai_Train.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_4_Shanghai/AOI_4_Shanghai_Train.tar.gz
+```
+#### Test
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_4_Shanghai/AOI_4_Shanghai_Test_public.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_4_Shanghai/AOI_4_Shanghai_Test_public.tar.gz
+```
+### Karthoum
+#### Train
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_5_Khartoum/AOI_5_Khartoum_Train.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_5_Khartoum/AOI_5_Khartoum_Train.tar.gz
+
+```
+#### Test
+```sh
+$ aws s3api get-object --bucket spacenet-dataset \
+    --key AOI_5_Khartoum/AOI_5_Khartoum_Test_public.tar.gz \
+    --request-payer requester /scratch/SPACENET_DATA/BUILDING_DATASET/AOI_5_Khartoum/AOI_5_Khartoum_Test_public.tar.gz
+```
 
