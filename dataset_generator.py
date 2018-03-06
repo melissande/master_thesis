@@ -29,7 +29,10 @@ def _parse_images(paths_input,paths_output):
 
     for path_o in paths_output:
         with h5py.File(path_o, 'r') as hf:
-            Y =np.array(hf.get('data'))
+            Y_build=np.array(hf.get('data'))
+            Y_build.astype(int)
+            Y_other= (1-Y_build).astype(int)
+            Y=np.stack((Y_build,Y_other),axis=2)
             output_.append(Y)
 
         
@@ -67,6 +70,7 @@ def data_augment(input_,output_,batch_size):
     
 
     return input_tot[:batch_size,:,:,:],output_tot[:batch_size,:,:,:]
+
 class DatasetGenerator():
     '''
     DatasetGenerator class
@@ -179,6 +183,7 @@ if __name__ == '__main__':
         for i in range(len(X)):
             for j in range(INPUT_SIZE):
                 plt.imsave(test_save+'X_iter'+str(iteration)+'batch_'+str(i)+'_band_'+str(j)+'.jpg',X[i,:,:,j])
-            plt.imsave(test_save+'Y_iter'+str(iteration)+'batch_'+str(i)+'.jpg',Y[i,:,:])
+            for j in range(OUTPUT_SIZE):
+                plt.imsave(test_save+'Y_iter'+str(iteration)+'batch_'+str(i)+'_band_'+str(j)+'.jpg',Y[i,:,:,j])
         exit()
     

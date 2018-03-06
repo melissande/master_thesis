@@ -23,8 +23,10 @@ def deconv2d(x, W,stride):
     return tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='SAME')
 
 def max_pool(x,n):
-    return tf.nn.max_pool(x, ksize=[1, n, n, 1], strides=[1, n, n, 1], padding='VALID')
- 
+    return tf.nn.max_pool(x, ksize=[1, n, n, 1], strides=[1, n, n, 1], padding='SAME')
+
+def features_concat(x1,x2):
+    return tf.concat([x1, x2], 3) 
 
 def pixel_wise_softmax(output_map):
     exponential_map = tf.exp(output_map)
@@ -33,7 +35,7 @@ def pixel_wise_softmax(output_map):
 
 def pixel_wise_softmax_2(output_map):
     exponential_map = tf.exp(output_map)
-    sum_exp = tf.reduce_sum(exponential_map, 3, keep_dims=True)
+    sum_exp = tf.reduce_sum(exponential_map, 3, keepdims=True)
     tensor_sum_exp = tf.tile(sum_exp, tf.stack([1, 1, 1, tf.shape(output_map)[3]]))
     return tf.div(exponential_map,tensor_sum_exp)
 
