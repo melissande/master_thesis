@@ -10,7 +10,7 @@ PATH_OUTPUT='OUTPUT/'
 SIZE_PATCH=500
 
 INPUT_SIZE=9
-OUTPUT_SIZE=1
+OUTPUT_SIZE=2
 
 def _parse_images(paths_input,paths_output):
     '''
@@ -160,6 +160,7 @@ class DatasetGenerator():
 
 
         return sliced
+
 
 if __name__ == '__main__':
 

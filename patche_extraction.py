@@ -37,11 +37,10 @@ def prepare_ms_hr(ms_lr,size_hr):
         
 def extract_patches(data,width,stride,path_out):
     '''
-    Extract patches from images and writes the output to .h5 file format
+    Extract patches from images 
     :data input image 
     :width dimensiton of the patch
     :stride stride of patch selection on the image
-    :path_out where to save the patches
     '''
     print('Patch extraction with stride=%d and width=%d begins for: %s'%(stride,width,path_out) )
     data_pl=tf.placeholder(tf.float64, [data.shape[0],data.shape[1],data.shape[2],data.shape[3]], name='data_placeholder')
@@ -51,9 +50,15 @@ def extract_patches(data,width,stride,path_out):
     data_o=tf.reshape(data_o,[size_tot[1]*size_tot[2],width,width,data.shape[3]])
     with tf.Session() as sess:
         Data_o= sess.run(data_o,feed_dict={data_pl: data})
-        write_data_h5(path_out,Data_o)
-        print('%d patches of size %d x %d saved as list for %s'%(Data_o.shape[0],Data_o.shape[1],Data_o.shape[2],path_out))
+        print('%d patches of size %d x %d created as list for %s'%(Data_o.shape[0],Data_o.shape[1],Data_o.shape[2],path_out))
         return Data_o
+def save_patches(data,path_out):
+    '''
+    Write the patches list to .h5 file format
+    :data patches list
+    :path_out where to save the patches
+    '''
+    write_data_h5(path_out,data)
     
 if __name__ == '__main__':
     path='../DATA_GHANA/RAW_DATA/'
@@ -63,19 +68,33 @@ if __name__ == '__main__':
             os.makedirs(path_patches)
   
     patch_test_number=300
-#     ## Panchromatic
+     ## Panchromatic
     panchromatic_file=path+NAME_PANCHRO
     panchromatic=read_images(panchromatic_file)
     hr_size=panchromatic.shape
     panchromatic=panchromatic[newaxis,:,:,newaxis]
-    
     print('\n PANCHROMATIC \n\n')
     panchromatic=extract_patches(panchromatic,WIDTH,STRIDE,path_patches+'panchro.h5')
+    
+    ## Find patches to discard
+    keep=np.arange(len(panchromatic))
+    discard=[]
+    print('Original size of the dataset is %d'%len(panchromatic))
+    for i in range(len(panchromatic)):
+        if (np.sum(panchromatic[i,:,:,:])).astype(int)==0:
+            discard.append(i)
+
+    discard=np.asarray(discard)
+    keep=np.delete(keep,discard)
+    print('Final size of the dataset is %d'%len(keep))
+    ## Save Panchromatic
+    panchromatic=panchromatic[keep]
+    save_patches(panchromatic,path_patches+'panchro.h5') 
     plt.imshow(panchromatic[patch_test_number,:,:,0])
     plt.show()
+            
 
-    
-# #     ##MS bands
+    ##MS bands
     
     ms_file=path+NAME_MS 
     ms=read_images(ms_file)
@@ -87,6 +106,8 @@ if __name__ == '__main__':
         print('Upscale')
         ms_hr=prepare_ms_hr(ms_i[newaxis,:,:,newaxis],hr_size)
         ms_hr=extract_patches(ms_hr,WIDTH,STRIDE,path_patches+'ms_hr_'+str(i)+'.h5')
+        ms_hr=ms_hr[keep]
+        save_patches(ms_hr,path_patches+'ms_hr_'+str(i)+'.h5')
         plt.imshow(ms_hr[patch_test_number,:,:,0])
         plt.show()
 
@@ -102,10 +123,12 @@ if __name__ == '__main__':
         pansharpened_i=pansharpened[:,:,i]
         print('Upscale')
         pansharpened_i=extract_patches(pansharpened_i[newaxis,:,:,newaxis],WIDTH,STRIDE,path_patches+'pansharpened_'+str(i)+'.h5')
+        pansharpened_i=pansharpened_i[keep]
+        save_patches(pansharpened_i,path_patches+'pansharpened_'+str(i)+'.h5')
         plt.imshow(pansharpened_i[patch_test_number,:,:,0])
         plt.show()
         
-#     ## Label patches
+    ## Label patches
     
     labels_file=path+NAME_LABELS
     labels=read_labels(labels_file)
@@ -113,11 +136,10 @@ if __name__ == '__main__':
     
     print('\n LABELS \n\n')
     labels=extract_patches(labels,WIDTH,STRIDE,path_patches+'groundtruth.h5')
+    labels=labels[keep]
+    save_patches(labels,path_patches+'groundtruth.h5')
     plt.imshow(labels[patch_test_number,:,:,0])
     plt.show()
-    
-    
-
     
     
     
