@@ -23,7 +23,7 @@ def deconv2d(x, W,stride):
     return tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='SAME')
 
 def max_pool(x,n):
-    return tf.nn.max_pool(x, ksize=[1, n, n, 1], strides=[1, n, n, 1], padding='SAME')
+    return tf.nn.max_pool(x, ksize=[1, n, n, 1], strides=[1, n, n, 1], padding='VALID')
 
 def features_concat(x1,x2):
     return tf.concat([x1, x2], 3) 
@@ -41,6 +41,6 @@ def pixel_wise_softmax_2(output_map):
 
 
 def cross_entropy(y_,output_map):
-#       return tf.nn.softmax_cross_entropy_with_logits(output_map,y_)
-    return -tf.reduce_mean(y_*tf.log(tf.clip_by_value(output_map,1e-10,1.0)), name="cross_entropy")
+    return tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_,logits=output_map,name="cross_entropy")
+#     return -tf.reduce_mean(y_*tf.log(tf.clip_by_value(output_map,1e-10,1.0)), name="cross_entropy")
 #     return tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(output_map), reduction_indices=[1]))
