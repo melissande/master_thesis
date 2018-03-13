@@ -38,38 +38,7 @@ def _parse_images(paths_input,paths_output):
         
             
     return np.asarray(input_),np.asarray(output_)
-        
-def data_augment(input_,output_,batch_size):
-    '''
-    Augments the data with transformation but only select batch_size number of data
-    :input_ input data
-    :output_ output data
-    :batch_size size of the batch
-    returns input and output arrays of data augmented with transformation or with identity  
-    '''
-    seq = iaa.Sequential([iaa.Add((-40, 40)),iaa.AdditiveGaussianNoise(scale=(0, 0.05*255)),iaa.Multiply((0.5, 1.5))])
-    input_int=input_*255
-    input_int.astype(int)
-    pan_new=seq.augment_images(input_int[:,:,:,0])
-    
-    pan_new=np.reshape(pan_new,[pan_new.shape[0],pan_new.shape[1],pan_new.shape[2],1])  
-    input_new=np.concatenate((pan_new,input_int[:,:,:,1:]),axis=-1)
-    
-    min_t=np.amin(np.reshape(input_new,[len(input_new)*SIZE_PATCH*SIZE_PATCH,(PAN_SIZE+PXS_SIZE)]), axis=0)
-    max_t=np.amax(np.reshape(input_new,[len(input_new)*SIZE_PATCH*SIZE_PATCH,(PAN_SIZE+PXS_SIZE)]), axis=0)
-    input_new=(input_new-min_t)/(max_t-min_t)
-    
-    input_tot=np.concatenate((input_,input_new),axis=0)
-    output_tot=np.concatenate((output_,output_),axis=0)
-
    
-    idx = np.arange(len(input_tot))
-    np.random.shuffle(idx)
-    input_tot=input_tot[idx]
-    output_tot=output_tot[idx]
-    
-
-    return input_tot[:batch_size,:,:,:],output_tot[:batch_size,:,:,:]
 
 class DatasetGenerator():
     '''

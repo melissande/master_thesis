@@ -103,7 +103,28 @@ def createRasterFromGeoJson(srcGeoJson, srcRasterFileName, outRasterFileName):
     band.FlushCache()
 
 
+def standardize(data):
+    '''
+    Standardize the input data of the network
+    :param data to be standardized (size nb_batches x WIDTH x HEIGHT x number of channels) 
+    
+    returns data standardized size nb_batches x WIDTH x HEIGHT x number of channels 
+    
+    '''
+    WIDTH=data.shape[1]
+    HEIGHT=data.shape[2]
+    channels=data.shape[3]
+    
+    mean_t=np.mean(np.reshape(data,[len(data)*WIDTH*HEIGHT,channels]), axis=0)
+    std_t=np.std(np.reshape(data,[len(data)*WIDTH*HEIGHT,channels]), axis=0)
+    data=data-mean_t/std_t
+    
+    #For normalization 
+    min_t=np.amin(np.reshape(data,[len(data)*WIDTH*HEIGHT,channels]), axis=0)
+    max_t=np.amax(np.reshape(data,[len(data)*WIDTH*HEIGHT,channels]), axis=0)
+    data=(data-min_t)/(max_t-min_t)
 
+    return data
 
 if __name__ == '__main__':
 
