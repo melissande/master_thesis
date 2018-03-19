@@ -8,12 +8,12 @@ from osgeo import gdal,osr,ogr
 
 import matplotlib.pyplot as plt
 
+OUTPUT_CHANNELS=1
+INPUT_CHANNELS=17
 
 NAME_PANCHRO='panchro.tif'
 NAME_PANSHARP='pansharp.tif'
 NAME_MS='ms.tif'
-
-
 
 def read_images(path):
     '''
@@ -53,7 +53,6 @@ def write_data_h5(path,data_):
     print('File'+path+' created')
 
 
-
 def plot_images(image,figsize=(8,8), plot_name='',add_title=False,save_path='',save_images=False):
     '''
     Plot each band of an image
@@ -80,8 +79,6 @@ def plot_images(image,figsize=(8,8), plot_name='',add_title=False,save_path='',s
     if add_title:
         suptitle.set_y(0.95)
         fig.subplots_adjust(top=0.96)
-    
-    
     
 def createRasterFromGeoJson(srcGeoJson, srcRasterFileName, outRasterFileName):
     NoData_value = 0

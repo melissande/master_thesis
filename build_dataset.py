@@ -6,13 +6,11 @@ import sys
 import os
 from image_utils import read_data_h5,write_data_h5
 import matplotlib.pyplot as plt
-
-
 if __name__ == '__main__':
     
     ##BUILD 500X500 8 bands Dataset
-    path_patches='../DATA_GHANA/RAW_PATCHES/500_x_500/'
-    path_dataset='../DATA_GHANA/DATASET/500_x_500_8_bands/'
+    path_patches='../DATA_GHANA/RAW_PATCHES/120_x_120/'
+    path_dataset='../DATA_GHANA/DATASET/120_x_120_4_bands_PANSH_8_bands_MS/'
     if not os.path.exists(path_dataset):
             os.makedirs(path_dataset)
     
@@ -21,27 +19,60 @@ if __name__ == '__main__':
     validation_ratio=0.2
     
     
-    list_input=[]
+    list_input_panchro=[]
+    list_input_ms=[]
+    list_input_pansharp=[]
     for filename in sorted(os.listdir(path_patches)):
         if filename.startswith('panchro'):
             print('Reading %s'%filename)
-            list_input.append(read_data_h5(path_patches+filename))
-        if filename.startswith('pansharpened'):
+            list_input_panchro.append(read_data_h5(path_patches+filename))
+        if filename.startswith('ms'):
             print('Reading %s'%filename)
-            list_input.append(read_data_h5(path_patches+filename))
+            list_input_ms.append(read_data_h5(path_patches+filename))
+        if filename.startswith('pansharp'):
+            print('Reading %s'%filename)
+            list_input_pansharp.append(read_data_h5(path_patches+filename))
         if filename.startswith('groundtruth'):
             print('Reading %s'%filename)
             list_output=read_data_h5(path_patches+filename)
             
-          
-    list_input=np.squeeze(np.asarray(list_input))
-    print('list input shape [%d,%d,%d,%d]'%list_input.shape)  
-    list_input=np.transpose(list_input,(1,2,3,0))
-    print('list input shape [%d,%d,%d,%d]'%list_input.shape)
+#     ##BUILD Panchro + Pansharp --> 9 bands
     
-    print('list output shape [%d,%d,%d,%d]'%list_output.shape) 
+#     list_input_panchro=np.squeeze(np.asarray(list_input_panchro))[newaxis,:,:,:]
+#     list_input_pansharp=np.squeeze(np.asarray(list_input_pansharp))
+#     list_input=np.concatenate((list_input_panchro,list_input_pansharp),axis=0)
+    
+#     ## Build Pancrho + MS --> 9 bands
+    
+#     list_input_panchro=np.squeeze(np.asarray(list_input_panchro))[newaxis,:,:,:]
+#     list_input_ms=np.squeeze(np.asarray(list_input_ms))
+#     list_input=np.concatenate((list_input_panchro,list_input_ms),axis=0)
+    
+#     ## Build Panchro + Pansharp 2,3,5,7
+
+#     list_input_panchro=np.squeeze(np.asarray(list_input_panchro))[newaxis,:,:,:]
+#     list_input_pansharp=np.stack((np.squeeze(np.asarray(list_input_pansharp))[1,:,:,:],
+#                                         np.squeeze(np.asarray(list_input_pansharp))[2,:,:,:],
+#                                         np.squeeze(np.asarray(list_input_pansharp))[4,:,:,:],
+#                                         np.squeeze(np.asarray(list_input_pansharp))[6,:,:,:]),axis=0)
+#     list_input=np.concatenate((list_input_panchro,list_input_pansharp),axis=0)
+
+    ## Build Panchro + Pansharp 2,3,5,7 + MS -->14 bands
+    
+    list_input_panchro=np.squeeze(np.asarray(list_input_panchro))[newaxis,:,:,:]
+    list_input_pansharp=np.stack((np.squeeze(np.asarray(list_input_pansharp))[1,:,:,:],
+                                        np.squeeze(np.asarray(list_input_pansharp))[2,:,:,:],
+                                        np.squeeze(np.asarray(list_input_pansharp))[4,:,:,:],
+                                        np.squeeze(np.asarray(list_input_pansharp))[6,:,:,:]),axis=0)
+    list_input_ms=np.squeeze(np.asarray(list_input_ms))
+    list_input=np.concatenate((list_input_panchro,list_input_pansharp,list_input_ms),axis=0)
+    
+    
+    
+    ## Followup
+    list_input=np.transpose(list_input,(1,2,3,0))
+    
     list_output=np.squeeze(list_output)
-    print('list output shape [%d,%d,%d]'%list_output.shape) 
     
     print('Dataset read')
     idx_shuffle = np.arange(len(list_input))
@@ -101,4 +132,5 @@ if __name__ == '__main__':
             
     
             
+        
         

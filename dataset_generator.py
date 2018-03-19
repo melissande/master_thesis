@@ -3,11 +3,10 @@ import sys
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
-from imgaug import augmenters as iaa
 
 PATH_INPUT='INPUT/'
 PATH_OUTPUT='OUTPUT/'
-SIZE_PATCH=500
+SIZE_PATCH=120
 
 INPUT_SIZE=9
 OUTPUT_SIZE=2
@@ -38,7 +37,7 @@ def _parse_images(paths_input,paths_output):
         
             
     return np.asarray(input_),np.asarray(output_)
-   
+        
 
 class DatasetGenerator():
     '''
@@ -131,10 +130,11 @@ class DatasetGenerator():
         return sliced
 
 
+
 if __name__ == '__main__':
 
-    root_folder = '../DATA_GHANA/DATASET/500_x_500_8_bands/TRAINING/'
-    test_save= '../DATA_GHANA/DATASET/500_x_500_8_bands/TEST_SAVE/'
+    root_folder = '../DATA_GHANA/DATASET/120_x_120_8_bands/TRAINING/'
+    test_save= '../DATA_GHANA/DATASET/120_x_120_8_bands/TEST_SAVE/'
     if not os.path.exists(test_save):
             os.makedirs(test_save)
 
@@ -156,4 +156,5 @@ if __name__ == '__main__':
             for j in range(OUTPUT_SIZE):
                 plt.imsave(test_save+'Y_iter'+str(iteration)+'batch_'+str(i)+'_band_'+str(j)+'.jpg',Y[i,:,:,j])
         exit()
+    
     
