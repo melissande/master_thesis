@@ -53,7 +53,7 @@ DROPOUT=0.9#0.9
 DEFAULT_BATCH_SIZE = 10#10
 DEFAULT_EPOCHS = 15#15
 DEFAULT_ITERATIONS =495#495
-DEFAULT_VALID=70#70
+DEFAULT_VALID=100#70
 DISPLAY_STEP=50#50
 
 
@@ -63,6 +63,7 @@ DEFAULT_LAYERS=4
 DEFAULT_FEATURES_ROOT=4
 DEFAULT_FILTERS_SIZE=3
 DEFAULT_POOL_SIZE=2
+OPTIMIZER='adam'
 
 def create_conv_net(x, keep_prob, channels, n_class, layers=DEFAULT_LAYERS, features_root=DEFAULT_FEATURES_ROOT, filter_size=DEFAULT_FILTERS_SIZE, pool_size=DEFAULT_POOL_SIZE,phase_train=True):
     """
@@ -186,7 +187,8 @@ def create_conv_net(x, keep_prob, channels, n_class, layers=DEFAULT_LAYERS, feat
     return output_map, variables, int(in_size - size)
 class CustomCNN():
     
-    def __init__(self, channels=INPUT_CHANNELS, n_class=NB_CLASSES, cost_kwargs={}, **kwargs):
+    
+    def __init__(self, channels=INPUT_CHANNELS, n_class=NB_CLASSES,layers=DEFAULT_LAYERS, features_root=DEFAULT_FEATURES_ROOT, filter_size=DEFAULT_FILTERS_SIZE, pool_size=DEFAULT_POOL_SIZE ):
         """
         Initializes the custom CNN 
         """
@@ -198,7 +200,7 @@ class CustomCNN():
         self.keep_prob = tf.placeholder(tf.float32)
         self.phase_train = tf.placeholder(tf.bool, name='phase_train')
 
-        logits, self.variables, self.offset = create_conv_net(self.X_placeholder, self.keep_prob, channels, n_class, **kwargs)
+        logits, self.variables, self.offset = create_conv_net(self.X_placeholder, self.keep_prob, channels, n_class,layers, features_root, filter_size,pool_size)
         
         self.cross_entropy = tf.reduce_mean(cross_entropy(tf.reshape(self.y_placeholder, [-1, n_class]),
                                                           tf.reshape(pixel_wise_softmax_2(logits), [-1, n_class])))
@@ -359,7 +361,7 @@ class Trainer(object):
             X_val,Y_val=val_generator.__next__()
             X_val=standardize(X_val)
             
-            self.store_prediction(sess, X_val, Y_val, "_init",validation_batch_size)
+            self.store_prediction(sess, X_val, Y_val, "_init",validation_batch_size,True)
             
             train_len = self.batch_size*training_iters
             training_generator = DatasetGenerator.from_root_folder(PATH_TRAINING, batch_size=self.batch_size)
@@ -406,16 +408,17 @@ class Trainer(object):
 
                 self.output_epoch_stats(epoch, total_loss, training_iters, lr)
                 
-                loss_v=self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size)
+                loss_v=self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size,False)
                 loss_verif[epoch]=loss_v
                 file_verif.write(str(loss_verif[epoch])+'\n')
+            self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size,True)
             save_path=self.net.save(sess,saver,save_path, counter)
                 
             logging.info("Optimization Finished!")
             
             return save_path, loss_train,loss_verif
         
-    def store_prediction(self, sess, batch_x, batch_y, name,validation_batch_size):
+    def store_prediction(self, sess, batch_x, batch_y, name,validation_batch_size,save_patches):
         prediction = sess.run(self.net.predicter, feed_dict={self.net.X_placeholder: batch_x, 
                                                              self.net.y_placeholder: batch_y, 
                                                              self.net.keep_prob: 1.,self.net.phase_train:False})
@@ -425,8 +428,8 @@ class Trainer(object):
                                                        self.net.keep_prob: 1.,self.net.phase_train:False})
 
         logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,batch_y),loss))
-        
-        plot_summary(prediction,batch_y,batch_x[:,:,:,0],validation_batch_size,name,self.prediction_path)
+        if save_patches:
+            plot_summary(prediction,batch_y,batch_x[:,:,:,0],validation_batch_size,name,self.prediction_path)
         return loss
 
     def output_epoch_stats(self, epoch, total_loss, training_iters, lr):
@@ -475,27 +478,27 @@ def error_rate(predictions, labels):
         (predictions.shape[0]*predictions.shape[1]*predictions.shape[2]))
 def plot_summary(predictions,labels,panchro,batch_size,epoch,prediction_path):
     
-    fig,axs=plt.subplots(3, batch_size,figsize=(8*batch_size,24))
+#     fig,axs=plt.subplots(3, batch_size,figsize=(8*batch_size,24))
 
-    axs[0,0].set_title(epoch+' Panchromatic ', fontsize='large')
-    axs[1,0].set_title(epoch+' Groundtruth ', fontsize='large')
-    axs[2,0].set_title(epoch+' Predictions ', fontsize='large')
+#     axs[0,0].set_title(epoch+' Panchromatic ', fontsize='large')
+#     axs[1,0].set_title(epoch+' Groundtruth ', fontsize='large')
+#     axs[2,0].set_title(epoch+' Predictions ', fontsize='large')
 
         
     for i in range(batch_size):
         
-        axs[0,i].imshow(panchro[i,:,:])
+#         axs[0,i].imshow(panchro[i,:,:])
         plt.imsave(prediction_path+epoch+'_Panchro_'+str(i)+'.jpg',panchro[i,:,:])
-        axs[1,i].imshow(labels[i,:,:,0])
+#         axs[1,i].imshow(labels[i,:,:,0])
         plt.imsave(prediction_path+epoch+'_Groundtruth_'+str(i)+'.jpg',labels[i,:,:,0])
         logits=np.argmax(predictions, 3)
-        axs[2,i].imshow(1-logits[i,:,:])
+#         axs[2,i].imshow(1-logits[i,:,:])
         plt.imsave(prediction_path+epoch+'_Predictions_'+str(i)+'.jpg',1-logits[i,:,:])
 
-    plt.subplots_adjust()
+#     plt.subplots_adjust()
 #     suptitle.set_y(0.95)
 #     fig.subplots_adjust(top=0.96)
-    plt.show()
+#     plt.show()
 
 # def _update_avg_gradients(avg_gradients, gradients, step):
 #     if avg_gradients is None:
@@ -508,7 +511,7 @@ def plot_summary(predictions,labels,panchro,batch_size,epoch,prediction_path):
 
 if __name__ == '__main__':
     
-    #python unet_baseline.py ../DATA_GHANA/DATASET/120_x_120_8_bands/ MODEL_BASIC_TEST_120/ RESUNET_BASIC_TEST.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=4 --nb_features_root=32 --filters_size=3 --pool_size=2 --batch_size=15 --optimizer=adam --epochs=15 --iterations=495 --dropout=0.9 --display_step=50 --validation_size_batch=70 --rec_save_model=2000
+    #python unet_baseline.py ../DATA_GHANA/DATASET/120_x_120_8_bands/ MODEL_BASIC_TEST_120/ RESUNET_BASIC_TEST.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=4 --nb_features_root=32 --filters_size=3 --pool_size=2 --batch_size=15 --optimizer=adam --epochs=2 --iterations=3 --dropout=0.9 --display_step=50 --validation_size_batch=70 --rec_save_model=1
 
     root_folder=sys.argv[1]
     #root_folder = '../DATA_GHANA/DATASET/120_x_120_8_bands/'
@@ -574,11 +577,12 @@ if __name__ == '__main__':
     
     print('Last model saved is %s: '%save_path)
     #SAVE PSNR
-    plt.title('Plot Loss', fontsize=20)
-    ite = np.arange(0,DEFAULT_EPOCHS*DEFAULT_ITERATIONS,1)
-    epo=np.arange((DEFAULT_ITERATIONS-1),(DEFAULT_EPOCHS*DEFAULT_ITERATIONS+(DEFAULT_ITERATIONS-1)),DEFAULT_ITERATIONS)
-    plt.plot(ite,loss_train,'b',epo,loss_verif,'g')
-    plt.ylabel('Loss')
-    plt.show()
+#     plt.title('Plot Loss', fontsize=20)
+#     ite = np.arange(0,DEFAULT_EPOCHS*DEFAULT_ITERATIONS,1)
+#     epo=np.arange((DEFAULT_ITERATIONS-1),(DEFAULT_EPOCHS*DEFAULT_ITERATIONS+(DEFAULT_ITERATIONS-1)),DEFAULT_ITERATIONS)
+#     plt.plot(ite,loss_train,'b',epo,loss_verif,'g')
+#     plt.ylabel('Loss')
+#     plt.savefig(GLOBAL_PATH+'losses.jpg')
+#     plt.show()
 
 
