@@ -6,6 +6,7 @@ import sys
 import os
 from osgeo import gdal,osr,ogr
 
+
 import matplotlib.pyplot as plt
 
 OUTPUT_CHANNELS=1
@@ -114,7 +115,7 @@ def standardize(data):
     
     mean_t=np.mean(np.reshape(data,[len(data)*WIDTH*HEIGHT,channels]), axis=0)
     std_t=np.std(np.reshape(data,[len(data)*WIDTH*HEIGHT,channels]), axis=0)
-    data=data-mean_t/std_t
+    data=(data-mean_t)/std_t
     
     #For normalization 
     min_t=np.amin(np.reshape(data,[len(data)*WIDTH*HEIGHT,channels]), axis=0)

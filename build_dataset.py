@@ -76,7 +76,7 @@ if __name__ == '__main__':
     
     print('Dataset read')
     idx_shuffle = np.arange(len(list_input))
-    np.random.shuffle(idx_shuffle)
+    idx_shuffle=np.random.shuffle(idx_shuffle)
     print('Dataset shuffled')    
     list_input=list_input[idx_shuffle]
     list_output=list_output[idx_shuffle]

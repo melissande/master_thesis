@@ -17,7 +17,7 @@ NAME_MS='ms.tif'
 NAME_LABELS='groundtruth.png'
 
 WIDTH=500
-STRIDE=250
+STRIDE=500
 
 
 def prepare_ms_hr(ms_lr,size_hr):
