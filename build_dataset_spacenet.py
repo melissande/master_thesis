@@ -6,7 +6,7 @@ from numpy import newaxis
 WIDTH=120
 STRIDE=120
 
-def extract_patches(data,width,stride):
+def extract_patches(sess,data,width,stride):
     '''
     Extract patches from images 
     :data input image 
@@ -19,14 +19,14 @@ def extract_patches(data,width,stride):
     print('Patch extraction done')
     size_tot=data_o.get_shape().as_list()
     data_o=tf.reshape(data_o,[size_tot[1]*size_tot[2],width,width,data.shape[3]])
-    with tf.Session() as sess:
-        Data_o= sess.run(data_o,feed_dict={data_pl: data})
-        print('%d patches of size %d x %d created as list'%(Data_o.shape[0],Data_o.shape[1],Data_o.shape[2]))
-        return Data_o
+    
+    Data_o= sess.run(data_o,feed_dict={data_pl: data})
+    print('%d patches of size %d x %d created as list'%(Data_o.shape[0],Data_o.shape[1],Data_o.shape[2]))
+    return Data_o
     
 path_raw='/scratch/SPACENET_DATA_PROCESSED/RAW_IMAGES/'
 
-path_dataset='/scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ e'
+path_dataset='/scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/'
 if not os.path.exists(path_dataset):
         os.makedirs(path_dataset)
 
@@ -99,66 +99,67 @@ if not os.path.exists(path_dataset+'TEST'):
             os.makedirs(path_dataset+'TEST/INPUT')
         if not os.path.exists(path_dataset+'TEST/OUTPUT'):
             os.makedirs(path_dataset+'TEST/OUTPUT')
-count_tr=0        
-print('BUILD TRAINING SET')
-for i in range(training_size):
-    filename=path_pansharp[i].split('pansharp_')[1]
-    filename=filename.split('.h5')[0]
-    
-    panchro=read_data_h5(path_panchro[i])
-    pansharp=read_data_h5(path_pansharp[i])
-    groundtruth=read_data_h5(path_groundtruth[i])
-    input_=np.concatenate((panchro,pansharp),axis=3)
-    output_=groundtruth
-    
-    input_=extract_patches(input_,WIDTH,STRIDE)
-    output_=extract_patches(output_,WIDTH,STRIDE)
-    
-    for j in range(input_.shape[0]):
-        write_data_h5(path_dataset+'TRAINING/INPUT/input_'+filename+'_'+str(j)+'.h5',input_[j,:,:,:])
-        write_data_h5(path_dataset+'TRAINING/OUTPUT/output_'+filename+'_'+str(j)+'.h5',output_[j,:,:,0])
-        count_tr+=1
-    
+with tf.Session() as sess:
+    count_tr=0        
+    print('BUILD TRAINING SET')
+    for i in range(training_size):
+        filename=path_pansharp[i].split('pansharp_')[1]
+        filename=filename.split('.h5')[0]
 
-print('BUILD VALIDATION SET')
-count_val=0
-for i in range(training_size,training_size+validation_size):
-    filename=path_pansharp[i].split('pansharp_')[1]
-    filename=filename.split('.h5')[0]
-    
-    panchro=read_data_h5(path_panchro[i])
-    pansharp=read_data_h5(path_pansharp[i])
-    groundtruth=read_data_h5(path_groundtruth[i])
-    input_=np.concatenate((panchro,pansharp),axis=3)
-    output_=groundtruth
-    
-    input_=extract_patches(input_,WIDTH,STRIDE)
-    output_=extract_patches(output_,WIDTH,STRIDE)
-    
-    for j in range(input_.shape[0]):
-        write_data_h5(path_dataset+'TRAINING/INPUT/input_'+filename+'_'+str(j)+'.h5',input_[j,:,:,:])
-        write_data_h5(path_dataset+'TRAINING/OUTPUT/output_'+filename+'_'+str(j)+'.h5',output_[j,:,:,0])
-        count_val+=1
+        panchro=read_data_h5(path_panchro[i])
+        pansharp=read_data_h5(path_pansharp[i])
+        groundtruth=read_data_h5(path_groundtruth[i])
+        input_=np.concatenate((panchro,pansharp),axis=3)
+        output_=groundtruth
 
-count_test=0
+        input_=extract_patches(sess,input_,WIDTH,STRIDE)
+        output_=extract_patches(sess,output_,WIDTH,STRIDE)
 
-print('BUILD TEST SET')
-for i in range(training_size+validation_size,list_input.shape[0]):
-    filename=path_pansharp[i].split('pansharp_')[1]
-    filename=filename.split('.h5')[0]
-    
-    panchro=read_data_h5(path_panchro[i])
-    pansharp=read_data_h5(path_pansharp[i])
-    groundtruth=read_data_h5(path_groundtruth[i])
-    input_=np.concatenate((panchro,pansharp),axis=3)
-    output_=groundtruth
-    
-    input_=extract_patches(input_,WIDTH,STRIDE)
-    output_=extract_patches(output_,WIDTH,STRIDE)
-    for j in range(input_.shape[0]):
-        write_data_h5(path_dataset+'TRAINING/INPUT/input_'+filename+'_'+str(j)+'.h5',input_[j,:,:,:])
-        write_data_h5(path_dataset+'TRAINING/OUTPUT/output_'+filename+'_'+str(j)+'.h5',output_[j,:,:,0])
-        count_test+=1
+        for j in range(input_.shape[0]):
+            write_data_h5(path_dataset+'TRAINING/INPUT/input_'+filename+'_'+str(j)+'.h5',input_[j,:,:,:])
+            write_data_h5(path_dataset+'TRAINING/OUTPUT/output_'+filename+'_'+str(j)+'.h5',output_[j,:,:,0])
+            count_tr+=1
+
+
+    print('BUILD VALIDATION SET')
+    count_val=0
+    for i in range(training_size,training_size+validation_size):
+        filename=path_pansharp[i].split('pansharp_')[1]
+        filename=filename.split('.h5')[0]
+
+        panchro=read_data_h5(path_panchro[i])
+        pansharp=read_data_h5(path_pansharp[i])
+        groundtruth=read_data_h5(path_groundtruth[i])
+        input_=np.concatenate((panchro,pansharp),axis=3)
+        output_=groundtruth
+
+        input_=extract_patches(sess,input_,WIDTH,STRIDE)
+        output_=extract_patches(sess,output_,WIDTH,STRIDE)
+
+        for j in range(input_.shape[0]):
+            write_data_h5(path_dataset+'VALIDATION/INPUT/input_'+filename+'_'+str(j)+'.h5',input_[j,:,:,:])
+            write_data_h5(path_dataset+'VALIDATION/OUTPUT/output_'+filename+'_'+str(j)+'.h5',output_[j,:,:,0])
+            count_val+=1
+
+    count_test=0
+
+    print('BUILD TEST SET')
+    for i in range(training_size+validation_size,path_panchro.shape[0]):
+        filename=path_pansharp[i].split('pansharp_')[1]
+        filename=filename.split('.h5')[0]
+
+        panchro=read_data_h5(path_panchro[i])
+        pansharp=read_data_h5(path_pansharp[i])
+        groundtruth=read_data_h5(path_groundtruth[i])
+        input_=np.concatenate((panchro,pansharp),axis=3)
+        output_=groundtruth
+
+        input_=extract_patches(sess,input_,WIDTH,STRIDE)
+        output_=extract_patches(sess,output_,WIDTH,STRIDE)
+        for j in range(input_.shape[0]):
+            write_data_h5(path_dataset+'TEST/INPUT/input_'+filename+'_'+str(j)+'.h5',input_[j,:,:,:])
+            write_data_h5(path_dataset+'TEST/OUTPUT/output_'+filename+'_'+str(j)+'.h5',output_[j,:,:,0])
+            count_test+=1
     
 print('Elements in Training set %d'%count_tr) 
 print('Elements in Validation set %d'%count_val)   

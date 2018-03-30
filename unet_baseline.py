@@ -8,6 +8,8 @@ import tensorflow as tf
 from math import log10
 from collections import OrderedDict
 from image_utils import standardize
+from IOU_computations import *
+
 
 import matplotlib.pyplot as plt
 from typing import Iterator, Tuple
@@ -64,6 +66,12 @@ DEFAULT_FEATURES_ROOT=32
 DEFAULT_FILTERS_SIZE=3
 DEFAULT_POOL_SIZE=2
 OPTIMIZER='adam'
+
+####### TMP folder for IOU
+
+TMP_IOU=TEST_SAVE+'TMP_IOU/'
+if not os.path.exists(TMP_IOU):
+            os.makedirs(TMP_IOU)
 
 def create_conv_net(x, keep_prob, channels, n_class, layers=DEFAULT_LAYERS, features_root=DEFAULT_FEATURES_ROOT, filter_size=DEFAULT_FILTERS_SIZE, pool_size=DEFAULT_POOL_SIZE,phase_train=True):
     """
@@ -332,12 +340,24 @@ class Trainer(object):
         PATH_TRAINING=data_provider_path+'TRAINING/'
         PATH_VALIDATION=data_provider_path+'VALIDATION/'
         PATH_TEST=data_provider_path+'TEST/'
-        
+        ####### TMP folder for IOU
+
+        TMP_IOU=prediction_path+'TMP_IOU/'
+        if not os.path.exists(TMP_IOU):
+            os.makedirs(TMP_IOU)
+            
         #STORE PSNR for ANALYSIS
         loss_train=np.zeros(training_iters*epochs)
-        file_train = open(TEST_SAVE+'loss_train.txt','w') 
+        file_train = open(prediction_path+'loss_train.txt','w') 
         loss_verif=np.zeros(epochs)
-        file_verif = open(TEST_SAVE+'loss_verif.txt','w') 
+        file_verif = open(prediction_path+'loss_verif.txt','w')
+        #STORE IOU for ANALYSIS
+        IOU_verif=np.zeros(epochs)
+        IOU_file_verif = open(TEST_SAVE+'iou_verif.txt','w')
+        #STORE f1_IOU for ANALYSIS
+        f1_IOU_verif=np.zeros(epochs)
+        f1_IOU_file_verif = open(TEST_SAVE+'f1_iou_verif.txt','w')
+        
         
         if epochs == 0:
             return save_path
@@ -408,15 +428,24 @@ class Trainer(object):
 
                 self.output_epoch_stats(epoch, total_loss, training_iters, lr)
                 
-                loss_v=self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size,False)
+                loss_v,prediction_v=self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size,False)
+                iou_v,f1_v=predict_score_batch(TMP_IOU,Y_val[:,:,:,0],1-np.argmax(prediction_v,3))
+                
                 loss_verif[epoch]=loss_v
+                IOU_verif[epoch]=iou_v
+                f1_IOU_verif[epoch]=f1_v
+                
+                IOU_file_verif.write(str(IOU_verif[epoch])+'\n')
+                f1_IOU_file_verif.write(str(f1_IOU_verif[epoch])+'\n')
                 file_verif.write(str(loss_verif[epoch])+'\n')
+                print("Validation IoU {:.4f}%,Validation F1 IoU {:.4f}%".format(iou_v,f1_v))
+                
             self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size,True)
             save_path=self.net.save(sess,saver,save_path, counter)
                 
             logging.info("Optimization Finished!")
             
-            return save_path, loss_train,loss_verif
+            return save_path, loss_train,loss_verif,IOU_verif,f1_IOU_verif
         
     def store_prediction(self, sess, batch_x, batch_y, name,validation_batch_size,save_patches):
         prediction = sess.run(self.net.predicter, feed_dict={self.net.X_placeholder: batch_x, 
@@ -430,7 +459,7 @@ class Trainer(object):
         logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,batch_y),loss))
         if save_patches:
             plot_summary(prediction,batch_y,batch_x[:,:,:,0],validation_batch_size,name,self.prediction_path)
-        return loss
+        return loss,prediction
 
     def output_epoch_stats(self, epoch, total_loss, training_iters, lr):
         logging.info("Epoch {:}, Average loss: {:.4f}, learning rate: {:.4f}".format(epoch, (total_loss / training_iters), lr))
@@ -525,6 +554,8 @@ if __name__ == '__main__':
     TEST_SAVE=GLOBAL_PATH+'TEST_SAVE/'
     if not os.path.exists(TEST_SAVE):
             os.makedirs(TEST_SAVE)
+            
+    
     ##########
     
     
@@ -571,12 +602,12 @@ if __name__ == '__main__':
 
     trainer=Trainer(model,DEFAULT_BATCH_SIZE,OPTIMIZER)
     
-    save_path,loss_train,loss_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE, DEFAULT_ITERATIONS,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE)
+    save_path,loss_train,loss_verif,iou_verif,f1_iou_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE, DEFAULT_ITERATIONS,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE)
     
     
     
     print('Last model saved is %s: '%save_path)
-    #SAVE PSNR
+    #SAVE loss
 #     plt.title('Plot Loss', fontsize=20)
 #     ite = np.arange(0,DEFAULT_EPOCHS*DEFAULT_ITERATIONS,1)
 #     epo=np.arange((DEFAULT_ITERATIONS-1),(DEFAULT_EPOCHS*DEFAULT_ITERATIONS+(DEFAULT_ITERATIONS-1)),DEFAULT_ITERATIONS)
@@ -584,5 +615,21 @@ if __name__ == '__main__':
 #     plt.ylabel('Loss')
 #     plt.savefig(GLOBAL_PATH+'losses.jpg')
 #     plt.show()
+
+#     #SAVE IOU
+#     plt.title('Plot IOU', fontsize=20)
+#     epo=np.arange((DEFAULT_ITERATIONS-1),(DEFAULT_EPOCHS*DEFAULT_ITERATIONS+(DEFAULT_ITERATIONS-1)),DEFAULT_ITERATIONS)
+#     plt.plot(epo,iou_verif,'g')
+#     plt.ylabel('IOU in %')
+#     plt.show()
+
+    
+#      #SAVE f1 IOU
+#     plt.title('Plot f1 IOU', fontsize=20)
+#     epo=np.arange((DEFAULT_ITERATIONS-1),(DEFAULT_EPOCHS*DEFAULT_ITERATIONS+(DEFAULT_ITERATIONS-1)),DEFAULT_ITERATIONS)
+#     plt.plot(epo,f1_iou_verif,'g')
+#     plt.ylabel('f1 IOU in %')
+#     plt.show()
+
 
 
