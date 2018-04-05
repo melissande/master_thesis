@@ -453,8 +453,12 @@ class Trainer(object):
 
         logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,batch_y),loss))
         if save_patches:
-            pansharp=np.stack((batch_x[:,:,:,5],batch_x[:,:,:,3],batch_x[:,:,:,2]),axis=3)
+            if batch_x.shape[-1]==9:
+                pansharp=np.stack((batch_x[:,:,:,5],batch_x[:,:,:,3],batch_x[:,:,:,2]),axis=3)
+            elif batch_x.shape[-1]==5 or batch_x.shape[-1]==13:
+                pansharp=np.stack((batch_x[:,:,:,3],batch_x[:,:,:,2],batch_x[:,:,:,1]),axis=3)
             plot_summary(prediction,batch_y,pansharp,validation_batch_size,name,self.prediction_path)
+                
         return loss,prediction
 
     def output_epoch_stats(self, epoch, total_loss, training_iters, lr):

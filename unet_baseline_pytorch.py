@@ -199,6 +199,7 @@ class Trainer(object):
 
         return save_path, loss_train,loss_verif,IOU_verif,IOU_acc_verif,f1_IOU_verif
     
+    
     def predict(self,batch_x,batch_y):
         X=np.transpose(batch_x, axes=[0,3,1,2])
         X = torch.FloatTensor(X)
@@ -220,8 +221,8 @@ class Trainer(object):
         prediction,loss=self.predict(batch_x,batch_y)
         loss=loss.data[0]
         logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,batch_y),loss))
-        
-pansharp=np.stack((batch_x[:,:,:,5],batch_x[:,:,:,3],batch_x[:,:,:,2]),axis=3)       plot_summary(prediction,batch_y,pansharp,validation_batch_size,name,self.prediction_path,save_patches)
+        pansharp=np.stack((batch_x[:,:,:,5],batch_x[:,:,:,3],batch_x[:,:,:,2]),axis=3)
+        plot_summary(prediction,batch_y,pansharp,validation_batch_size,name,self.prediction_path,save_patches)
 
         return loss,prediction
     def output_epoch_stats(self, epoch, total_loss, training_iters, lr):
@@ -254,6 +255,24 @@ pansharp=np.stack((batch_x[:,:,:,5],batch_x[:,:,:,3],batch_x[:,:,:,2]),axis=3)  
     # #     #     suptitle.set_y(0.95)
     # #     #     fig.subplots_adjust(top=0.96)
     # #         plt.show()
+    
+    
+def predict_pytorch(net,batch_x,batch_y):
+    X=np.transpose(batch_x, axes=[0,3,1,2])
+    X = torch.FloatTensor(X)
+    X = Variable(X).cuda()
+    Y=np.transpose(batch_y, axes=[0,3,1,2])
+    Y = torch.FloatTensor(Y)
+    Y = Variable(Y).cuda()
+
+    y_pred=net(X)
+    probs = Fu.softmax(y_pred,dim=1)
+    loss=Fu.binary_cross_entropy_with_logits(probs,Y)
+    probs=probs.data.cpu().numpy()
+    probs=np.transpose(probs, axes=[0,2,3,1])
+    return probs,loss.data[0]
+
+
 def save_metrics(epochs,training_iters,prediction_path,mode):
     #STORE loss for ANALYSIS
     loss_train=np.zeros(training_iters*epochs)
@@ -271,7 +290,7 @@ def save_metrics(epochs,training_iters,prediction_path,mode):
     f1_IOU_file_verif = open(prediction_path+'f1_iou_verif.txt',mode) 
     
     return loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif
-    
+ 
 def error_rate(predictions, labels):
     """
     Return the error rate based on dense predictions and 1-hot labels.
