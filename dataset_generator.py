@@ -29,7 +29,7 @@ def _parse_images(paths_input,paths_output):
     for path_o in paths_output:
         with h5py.File(path_o, 'r') as hf:
             Y_build=np.array(hf.get('data'))
-            Y_build.astype(int)
+            Y_build=(Y_build>0).astype(int)
             Y_other= (1-Y_build).astype(int)
             Y=np.stack((Y_build,Y_other),axis=2)
             output_.append(Y)

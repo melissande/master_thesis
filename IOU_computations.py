@@ -17,7 +17,7 @@ def vectorize_raster(geoJsonFileName,array2d,layerName="BuildingID",fieldName="B
 
     fd = ogr.FieldDefn(fieldName, ogr.OFTInteger)
     dst_layer.CreateField(fd)
-    dst_field = 1
+    dst_field = 0
 
     gdal.Polygonize(band, None, dst_layer, dst_field, [], callback=None)
 
@@ -25,6 +25,7 @@ def vectorize_raster(geoJsonFileName,array2d,layerName="BuildingID",fieldName="B
 def predict_score_batch(temporary_fold,batch_y,prediction):
     tot_score_batch=0
     tot_f1_score_batch=0
+    tot_ious_batch=0
 
     for i in range(len(batch_y)):
         vectorize_raster(temporary_fold+'test_gt.geojson',batch_y[i])
@@ -33,14 +34,21 @@ def predict_score_batch(temporary_fold,batch_y,prediction):
             geojson_groundtruth = json.load(f)
         with open(temporary_fold+'test_pred.geojson') as f:
             geojson_prediction = json.load(f)
-        score=0
+        
         
         M=len(geojson_prediction['features'])
         N=len(geojson_groundtruth['features'])
+#         print('Image %d: %d predictions proposed and %d groundtruth'%(i,M,N))
+        score=0
+        IOUs_sum=0
         for feature_pred in geojson_prediction['features']:   
             IoUs=[]
+            IoUs_accu=[]
+#             print(ogr.CreateGeometryFromJson(json.dumps(feature_pred['geometry'])).GetArea())
+#             print('Polygone')
+            
             for feature_gt in geojson_groundtruth['features']:
-                
+#                 print(ogr.CreateGeometryFromJson(json.dumps(feature_gt['geometry'])).GetArea())
                 poly1=ogr.CreateGeometryFromJson(json.dumps(feature_gt['geometry']))
                 poly2=ogr.CreateGeometryFromJson(json.dumps(feature_pred['geometry']))
                 intersection = poly1.Intersection(poly2)
@@ -51,17 +59,24 @@ def predict_score_batch(temporary_fold,batch_y,prediction):
                     IoUs.append(intersection.GetArea()/union.GetArea())
                 
             IoUs=np.asarray(IoUs)
-            IoUs=(IoUs>0.5).astype(int)*IoUs
 #             print(IoUs)
-            if (IoUs.size and np.amax(IoUs)>0):
-                index=np.argmax(IoUs)
-#                 print(index)
-                geojson_groundtruth['features'].remove(geojson_groundtruth['features'][0])
+            IoUs_accu=(IoUs>0.5).astype(int)*IoUs
+#             print(IoUs_accu)
+            if (IoUs_accu.size and np.amax(IoUs_accu)>0):
+                index=np.argmax(IoUs_accu)
+#                 print('index %d'%index)
+                geojson_groundtruth['features'].remove(geojson_groundtruth['features'][index])
+#                 print('new size groundtruth %d'%len(geojson_groundtruth['features']))
                 score+=1
-            tot_score_batch+=score/M
-            tot_f1_score_batch+=2*score/(M+N)
-        tot_score_batch/=len(batch_y)
-        tot_f1_score_batch/=len(batch_y)
-    return tot_score_batch*100,tot_f1_score_batch*100
-#     print(tot_score_batch)
+                IOUs_sum+=IoUs[index]
+#         print('score: %f: '%score)
+#         print('IOUs_sum: %f: '%IOUs_sum)
+        tot_ious_batch+=IOUs_sum/N
+        tot_score_batch+=score/N
+        tot_f1_score_batch+=2*score/(M+N)
+    tot_ious_batch/=len(batch_y)
+    tot_score_batch/=len(batch_y)
+    tot_f1_score_batch/=len(batch_y)
+    return tot_score_batch*100,tot_f1_score_batch*100,tot_ious_batch
+
         

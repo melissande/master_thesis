@@ -5,17 +5,20 @@ import cv2
 import sys
 import os
 from osgeo import gdal,osr,ogr
-
-
 import matplotlib.pyplot as plt
 
-OUTPUT_CHANNELS=1
-INPUT_CHANNELS=17
 
 NAME_PANCHRO='panchro.tif'
 NAME_PANSHARP='pansharp.tif'
 NAME_MS='ms.tif'
-
+geojson_file='buildings_accra.geojson'
+'''
+This script gathers all the functions useful to open, read and write images in .png or .h5.
+The main is used to visualize the image with all bands from Accra by DHI Gras and to create the groundtruth mask in .png
+python image_utils.py ../DATA_GHANA/RAW_DATA/
+where the first argument is the path are where are the raw images of Accra and the geojson corresponding files.
+Files should be named: 'panchro.tif' for the panchromatic band, 'pansharp.tif' for the pansharpened bands, 'ms.tif' for the multi spectral bands, 'buildings_accra.geojson' for the geojson file of Accra.
+'''
 def read_images(path):
     '''
     Reads tif images (panchromatic, MS, pansharpened)
@@ -62,26 +65,32 @@ def plot_images(image,figsize=(8,8), plot_name='',add_title=False,save_path='',s
     
     number_channels=image.shape[2]
     
-    fig, axs = plt.subplots(1, number_channels, figsize=(number_channels*figsize[0], figsize[1]))
+#     fig, axs = plt.subplots(1, number_channels, figsize=(number_channels*figsize[0], figsize[1]))
 
-    if number_channels==1:
-        axs=[axs]
+#     if number_channels==1:
+#         axs=[axs]
     
-    if add_title:
-        suptitle = fig.suptitle(plot_name.split('/')[-1], fontsize='large')
+#     if add_title:
+#         suptitle = fig.suptitle(plot_name.split('/')[-1], fontsize='large')
     for i in range(number_channels):
-        axs[i].imshow(image[:,:,i])
-        axs[i].set_title('Band '+str(i))
+#         axs[i].imshow(image[:,:,i])
+#         axs[i].set_title('Band '+str(i))
         if save_images:
             print('Save image %s band %d'%(plot_name,i))
             plt.imsave(save_path+plot_name+'_'+str(i)+'.png',image[:,:,i])
         
-    plt.tight_layout()
-    if add_title:
-        suptitle.set_y(0.95)
-        fig.subplots_adjust(top=0.96)
+#     plt.tight_layout()
+#     if add_title:
+#         suptitle.set_y(0.95)
+#         fig.subplots_adjust(top=0.96)
     
 def createRasterFromGeoJson(srcGeoJson, srcRasterFileName, outRasterFileName):
+    '''
+    Creates a raster image from a geojson file. Create the raster mask of buildings footprints and saves it as .png
+    :srcGeoJson geojson file of building polygons
+    :srcRasterFileName raster image corresponding, can be the panchromatic band
+    :outRasterFileName name under which the mask has to be saved
+    '''
     NoData_value = 0
     source_ds = ogr.Open(srcGeoJson)
     source_layer = source_ds.GetLayer()
@@ -126,9 +135,9 @@ def standardize(data):
 
 if __name__ == '__main__':
 
-
-    path='../DATA_GHANA/RAW_DATA/'
-    geojson_file=path+'buildings_accra.geojson'
+    
+    #path='../DATA_GHANA/RAW_DATA/'
+    path=sys.argv[1]
     
     save_folder=path+'test_display/'
     if not os.path.exists(save_folder):
@@ -159,7 +168,7 @@ if __name__ == '__main__':
     
 #     ## Display  Labels
     print('Display Labels')
-    createRasterFromGeoJson(geojson_file, panchromatic_file,name_labels)
+    createRasterFromGeoJson(path+geojson_file, panchromatic_file,name_labels)
     labels=read_images(name_labels)
     labels=labels[:,:,newaxis]
     plot_images(labels,figsize=(8,8), plot_name='groundtruth',add_title=True,save_path=save_folder,save_images=True)

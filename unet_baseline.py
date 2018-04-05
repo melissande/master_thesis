@@ -16,6 +16,8 @@ from typing import Iterator, Tuple
 from dataset_generator import DatasetGenerator
 from layers import weight_variable,bias_variable,conv2d,weight_variable_devonc,deconv2d,max_pool,pixel_wise_softmax,cross_entropy,features_concat,pixel_wise_softmax_2
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 ##########
 GLOBAL_PATH='MODEL_BASIC_TEST_120/'
@@ -67,11 +69,7 @@ DEFAULT_FILTERS_SIZE=3
 DEFAULT_POOL_SIZE=2
 OPTIMIZER='adam'
 
-####### TMP folder for IOU
 
-TMP_IOU=TEST_SAVE+'TMP_IOU/'
-if not os.path.exists(TMP_IOU):
-            os.makedirs(TMP_IOU)
 
 def create_conv_net(x, keep_prob, channels, n_class, layers=DEFAULT_LAYERS, features_root=DEFAULT_FEATURES_ROOT, filter_size=DEFAULT_FILTERS_SIZE, pool_size=DEFAULT_POOL_SIZE,phase_train=True):
     """
@@ -210,8 +208,9 @@ class CustomCNN():
 
         logits, self.variables, self.offset = create_conv_net(self.X_placeholder, self.keep_prob, channels, n_class,layers, features_root, filter_size,pool_size)
         
-        self.cross_entropy = tf.reduce_mean(cross_entropy(tf.reshape(self.y_placeholder, [-1, n_class]),
-                                                          tf.reshape(pixel_wise_softmax_2(logits), [-1, n_class])))
+        self.cross_entropy = tf.reduce_mean(cross_entropy(tf.argmax(self.y_placeholder,axis=3),logits))
+#         self.cross_entropy = tf.reduce_mean(cross_entropy(tf.reshape(self.y_placeholder, [-1, n_class]),
+#                                                           tf.reshape(logits, [-1, n_class])))
         self.cost=self.cross_entropy
 #         self.gradients_node = tf.gradients(self.cross_entropy, self.variables)
         
@@ -244,10 +243,10 @@ class CustomCNN():
         :param model_path: path to file system checkpoint location
         """
 
-        print("Reading checkpoints...")
+#         print("Reading checkpoints...")
         saver.restore(sess, model_path)
         summary="Model restored from file: %s" % (model_path)
-        print(summary)
+#         print(summary)
  
         
     def predict(self, model_path, x_test):
@@ -259,18 +258,18 @@ class CustomCNN():
         :returns prediction: The unet prediction Shape [n, px, py, labels] (px=nx-self.offset/2) 
         """
         
-        init = tf.global_variables_initializer()
+        
+        saver = tf.train.Saver()
         with tf.Session() as sess:
-            # Initialize variables
-            sess.run(init)
+
         
             # Restore model weights from previously saved model
-            self.restore(sess, model_path)
+            self.restore(sess, saver,model_path)
             
             y_dummy = np.empty((x_test.shape[0], x_test.shape[1], x_test.shape[2], self.n_class))
-            prediction = sess.run(self.predicter, feed_dict={self.X_placeholder: x_test, self.y_placeholder: y_dummy, self.keep_prob: 1.})
+            prediction,loss = sess.run((self.predicter,self.cost), feed_dict={self.X_placeholder: x_test, self.y_placeholder: y_dummy, self.keep_prob: 1.})
             
-        return prediction
+        return prediction,loss
         
         
 class Trainer(object):
@@ -303,7 +302,7 @@ class Trainer(object):
             optimizer = tf.train.MomentumOptimizer(learning_rate=self.learning_rate_node, momentum=momentum,
                                                    **self.opt_kwargs).minimize(self.net.cost,global_step=global_step)
         elif self.optimizer == "adam":
-            learning_rate = self.opt_kwargs.pop("learning_rate", 0.0001)
+            learning_rate = self.opt_kwargs.pop("learning_rate", 0.00001)
             self.learning_rate_node = tf.Variable(learning_rate)
             
             optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_node, 
@@ -346,17 +345,7 @@ class Trainer(object):
         if not os.path.exists(TMP_IOU):
             os.makedirs(TMP_IOU)
             
-        #STORE PSNR for ANALYSIS
-        loss_train=np.zeros(training_iters*epochs)
-        file_train = open(prediction_path+'loss_train.txt','w') 
-        loss_verif=np.zeros(epochs)
-        file_verif = open(prediction_path+'loss_verif.txt','w')
-        #STORE IOU for ANALYSIS
-        IOU_verif=np.zeros(epochs)
-        IOU_file_verif = open(TEST_SAVE+'iou_verif.txt','w')
-        #STORE f1_IOU for ANALYSIS
-        f1_IOU_verif=np.zeros(epochs)
-        f1_IOU_file_verif = open(TEST_SAVE+'f1_iou_verif.txt','w')
+        
         
         
         if epochs == 0:
@@ -370,8 +359,10 @@ class Trainer(object):
             
             if restore_path=='':
                 sess.run(init)
+                loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(epochs,training_iters,TEST_SAVE,'w')
             else:
-                self.net.restore(sess,saver,restore_path )
+                self.net.restore(sess,saver,restore_path)
+                loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(epochs,training_iters,TEST_SAVE,'a')
 
             
 
@@ -429,23 +420,27 @@ class Trainer(object):
                 self.output_epoch_stats(epoch, total_loss, training_iters, lr)
                 
                 loss_v,prediction_v=self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size,False)
-                iou_v,f1_v=predict_score_batch(TMP_IOU,Y_val[:,:,:,0],1-np.argmax(prediction_v,3))
-                
-                loss_verif[epoch]=loss_v
+                iou_acc_v,f1_v,iou_v=predict_score_batch(TMP_IOU,Y_val[:,:,:,0],1-np.argmax(prediction_v,3))
+            
+            
                 IOU_verif[epoch]=iou_v
+                IOU_acc_verif[epoch]=iou_acc_v
                 f1_IOU_verif[epoch]=f1_v
-                
+                loss_verif[epoch]=loss_v
+
                 IOU_file_verif.write(str(IOU_verif[epoch])+'\n')
+                IOU_acc_file_verif.write(str(IOU_acc_verif[epoch])+'\n')
                 f1_IOU_file_verif.write(str(f1_IOU_verif[epoch])+'\n')
                 file_verif.write(str(loss_verif[epoch])+'\n')
-                print("Validation IoU {:.4f}%,Validation F1 IoU {:.4f}%".format(iou_v,f1_v))
+
+                print("Validation IoU {:.4f}%, Validation IoU_acc {:.4f}%,Validation F1 IoU {:.4f}%".format(iou_v,iou_acc_v,f1_v))
                 
             self.store_prediction(sess, X_val, Y_val, "epoch_%s"%epoch,validation_batch_size,True)
             save_path=self.net.save(sess,saver,save_path, counter)
                 
             logging.info("Optimization Finished!")
             
-            return save_path, loss_train,loss_verif,IOU_verif,f1_IOU_verif
+            return save_path, loss_train,loss_verif,IOU_verif,IOU_acc_verif,f1_IOU_verif
         
     def store_prediction(self, sess, batch_x, batch_y, name,validation_batch_size,save_patches):
         prediction = sess.run(self.net.predicter, feed_dict={self.net.X_placeholder: batch_x, 
@@ -458,7 +453,8 @@ class Trainer(object):
 
         logging.info("Verification error= {:.1f}%, loss= {:.4f}".format(error_rate(prediction,batch_y),loss))
         if save_patches:
-            plot_summary(prediction,batch_y,batch_x[:,:,:,0],validation_batch_size,name,self.prediction_path)
+            pansharp=np.stack((batch_x[:,:,:,5],batch_x[:,:,:,3],batch_x[:,:,:,2]),axis=3)
+            plot_summary(prediction,batch_y,pansharp,validation_batch_size,name,self.prediction_path)
         return loss,prediction
 
     def output_epoch_stats(self, epoch, total_loss, training_iters, lr):
@@ -495,7 +491,23 @@ class Trainer(object):
 #     #     fig.subplots_adjust(top=0.96)
 #         plt.show()
 
-
+def save_metrics(epochs,training_iters,prediction_path,mode):
+    #STORE loss for ANALYSIS
+    loss_train=np.zeros(training_iters*epochs)
+    file_train = open(prediction_path+'loss_train.txt',mode) 
+    loss_verif=np.zeros(epochs)
+    file_verif = open(prediction_path+'loss_verif.txt',mode) 
+    #STORE IOU for ANALYSIS
+    IOU_verif=np.zeros(epochs)
+    IOU_file_verif = open(prediction_path+'iou_verif.txt',mode)
+    #STORE IOU_ACC for ANALYSIS
+    IOU_acc_verif=np.zeros(epochs)
+    IOU_acc_file_verif = open(prediction_path+'iou_acc_verif.txt',mode)
+    #STORE f1_IOU for ANALYSIS
+    f1_IOU_verif=np.zeros(epochs)
+    f1_IOU_file_verif = open(prediction_path+'f1_iou_verif.txt',mode) 
+    
+    return loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif
 def error_rate(predictions, labels):
     """
     Return the error rate based on dense predictions and 1-hot labels.
@@ -505,19 +517,19 @@ def error_rate(predictions, labels):
         100.0 *
         np.sum(np.argmax(predictions, 3) == np.argmax(labels, 3)) /
         (predictions.shape[0]*predictions.shape[1]*predictions.shape[2]))
-def plot_summary(predictions,labels,panchro,batch_size,epoch,prediction_path):
+def plot_summary(predictions,labels,pansharp,batch_size,epoch,prediction_path):
     
 #     fig,axs=plt.subplots(3, batch_size,figsize=(8*batch_size,24))
 
-#     axs[0,0].set_title(epoch+' Panchromatic ', fontsize='large')
+#     axs[0,0].set_title(epoch+' Pansharpened ', fontsize='large')
 #     axs[1,0].set_title(epoch+' Groundtruth ', fontsize='large')
 #     axs[2,0].set_title(epoch+' Predictions ', fontsize='large')
 
         
     for i in range(batch_size):
         
-#         axs[0,i].imshow(panchro[i,:,:])
-        plt.imsave(prediction_path+epoch+'_Panchro_'+str(i)+'.jpg',panchro[i,:,:])
+#         axs[0,i].imshow(pansharp[i])
+        plt.imsave(prediction_path+epoch+'_Pansharp_'+str(i)+'.jpg',pansharp[i])
 #         axs[1,i].imshow(labels[i,:,:,0])
         plt.imsave(prediction_path+epoch+'_Groundtruth_'+str(i)+'.jpg',labels[i,:,:,0])
         logits=np.argmax(predictions, 3)
@@ -540,8 +552,12 @@ def plot_summary(predictions,labels,panchro,batch_size,epoch,prediction_path):
 
 if __name__ == '__main__':
     
-    #python unet_baseline.py ../DATA_GHANA/DATASET/120_x_120_8_bands/ MODEL_BASIC_TEST_120/ RESUNET_BASIC_TEST.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=4 --nb_features_root=32 --filters_size=3 --pool_size=2 --batch_size=15 --optimizer=adam --epochs=2 --iterations=3 --dropout=0.9 --display_step=50 --validation_size_batch=70 --rec_save_model=1
+    
 
+#     python unet_baseline.py ../DATA_GHANA/DATASET/120_x_120_8_bands/ MODEL_BASIC_TEST_120/ RESUNET_BASIC_TEST.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=4 --nb_features_root=32 --filters_size=3 --pool_size=2 --batch_size=10 --optimizer=adam --epochs=2 --iterations=3 --dropout=0.9 --display_step=50 --validation_size_batch=100 --rec_save_model=1
+
+    
+    
     root_folder=sys.argv[1]
     #root_folder = '../DATA_GHANA/DATASET/120_x_120_8_bands/'
     
@@ -554,6 +570,7 @@ if __name__ == '__main__':
     TEST_SAVE=GLOBAL_PATH+'TEST_SAVE/'
     if not os.path.exists(TEST_SAVE):
             os.makedirs(TEST_SAVE)
+    
             
     
     ##########
@@ -602,7 +619,7 @@ if __name__ == '__main__':
 
     trainer=Trainer(model,DEFAULT_BATCH_SIZE,OPTIMIZER)
     
-    save_path,loss_train,loss_verif,iou_verif,f1_iou_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE, DEFAULT_ITERATIONS,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE)
+    save_path,loss_train,loss_verif,iou_verif,iou_acc_verif,f1_iou_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE, DEFAULT_ITERATIONS,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE)
     
     
     
@@ -621,6 +638,12 @@ if __name__ == '__main__':
 #     epo=np.arange((DEFAULT_ITERATIONS-1),(DEFAULT_EPOCHS*DEFAULT_ITERATIONS+(DEFAULT_ITERATIONS-1)),DEFAULT_ITERATIONS)
 #     plt.plot(epo,iou_verif,'g')
 #     plt.ylabel('IOU in %')
+#     plt.show()
+#     #SAVE IOU  acc
+#     plt.title('Plot IOU Accuracy', fontsize=20)
+#     epo=np.arange((DEFAULT_ITERATIONS-1),(DEFAULT_EPOCHS*DEFAULT_ITERATIONS+(DEFAULT_ITERATIONS-1)),DEFAULT_ITERATIONS)
+#     plt.plot(epo,iou_acc_verif,'g')
+#     plt.ylabel('IOU Accuracy in %')
 #     plt.show()
 
     

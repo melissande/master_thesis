@@ -41,6 +41,8 @@ def pixel_wise_softmax_2(output_map):
 
 
 def cross_entropy(y_,output_map):
-    return tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_,logits=output_map,name="cross_entropy")
+    
+    return tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y_,logits=output_map,name="cross_entropy")
+#     return tf.nn.softmax_cross_entropy_with_logits_v2(labels=y_,logits=output_map,name="cross_entropy")
 #     return -tf.reduce_mean(y_*tf.log(tf.clip_by_value(output_map,1e-10,1.0)), name="cross_entropy")
 #     return tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(output_map), reduction_indices=[1]))
