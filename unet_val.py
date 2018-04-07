@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
+
 class double_conv(nn.Module):
     """
     block composed of two successive convolutions each followed by batch normalization and ReLU activation function
@@ -145,7 +146,7 @@ class UNet(nn.Module):
     """
     U-Net model with custom number of layers, dropout and batch normalization
     """
-    def __init__(self, in_channels, out_channels, depth = 5, n_features_zero = 64, dropout=0, batch_norm=True):
+    def __init__(self, in_channels, out_channels, depth = 5, n_features_zero = 64, dropout=0, batch_norm=True,distance_net=False,threshold=20,bins=15):
         """
         initialize the model
         Args:
@@ -173,6 +174,9 @@ class UNet(nn.Module):
             n_features = n_features // 2
             self.ups += [u]
         self.outc = outconv(n_features, out_channels)
+        self.distance_net=distance_net
+        if self.distance_net:
+            self.outc2= outconv(n_features, bins)
         
     def forward(self, x):
         x = self.inc(x)
@@ -183,8 +187,15 @@ class UNet(nn.Module):
  
         for k,u in enumerate(self.ups):
             x = u(x,bridges[len(bridges)-1-k])
-        x = self.outc(x)
-        return x
+        if self.distance_net:
+            x_seg=self.outc(x)
+            x_dist=torch.cat((x, x_seg), 1)
+            x_dist = self.outc2(x)
+            return x_dist,x_seg
+        else:
+            x = self.outc(x)
+            return x
+        
     
     def debug(self, x):
         x = self.inc(x)

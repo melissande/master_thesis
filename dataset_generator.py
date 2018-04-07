@@ -72,9 +72,10 @@ class DatasetGenerator():
         
         return DatasetGenerator(np.asarray(paths_input), np.asarray(paths_output), batch_size=batch_size)
 
-    def shuffled(self, seed=None):
-        if seed is not None:
-            np.random.seed(seed)
+#     def shuffled(self, seed=None):
+    def shuffled(self):
+#         if seed is not None:
+#             np.random.seed(seed)
 
         idx = np.arange(len(self.paths_input))
         np.random.shuffle(idx)
